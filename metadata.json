@@ -1,0 +1,6 @@
+{
+  "name": "Minescript AI Coding Assistant",
+  "description": "An AI-powered coding assistant specialized in Minescript, a Python library for Minecraft, grounded strictly in uploaded reference files to eliminate hallucinations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
