@@ -451,7 +451,7 @@ if __name__ == "__main__":
             {/* Model Selector */}
             <div className="space-y-2">
               <label className="text-xs font-semibold text-gray-300 block">KI-Modell auswählen</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 <button
                   onClick={() => setSelectedModel("gemini-3.5-flash")}
                   className={`p-2 rounded-lg text-left border text-xs transition-all ${
@@ -462,6 +462,17 @@ if __name__ == "__main__":
                 >
                   <div className="font-semibold">Gemini 3.5 Flash</div>
                   <div className="text-[10px] text-gray-500">Schnell & riesiges Kontextfenster</div>
+                </button>
+                <button
+                  onClick={() => setSelectedModel("gemini-3.1-flash-lite")}
+                  className={`p-2 rounded-lg text-left border text-xs transition-all ${
+                    selectedModel === "gemini-3.1-flash-lite"
+                      ? "bg-green-950/30 border-green-500/50 text-green-400"
+                      : "bg-[#0C0C0C] border-[#2A2A2A] text-gray-400 hover:border-[#333]"
+                  }`}
+                >
+                  <div className="font-semibold">Gemini 3.1 Lite</div>
+                  <div className="text-[10px] text-gray-500">Extrem schnell & hochverfügbar</div>
                 </button>
                 <button
                   onClick={() => setSelectedModel("gemini-3.1-pro-preview")}

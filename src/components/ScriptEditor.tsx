@@ -110,7 +110,7 @@ export default function ScriptEditor({
 
   const handleSave = () => {
     if (!currentScript) return;
-    onSaveScript(scriptTitle, currentScript, scriptPrompt || "Custom edited script");
+    onSaveScript(scriptTitle, currentScript, "Custom edited script");
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2000);
   };

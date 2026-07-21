@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 
@@ -96,14 +97,31 @@ app.post("/api/generate", async (req, res) => {
     const selectedModel = model || "gemini-3.5-flash";
 
     // Format knowledge files as reference context
+    const knowledgeDir = path.join(process.cwd(), "knowledge");
+    let serverKnowledgeStr = "";
+    if (fs.existsSync(knowledgeDir)) {
+      const serverFiles = fs.readdirSync(knowledgeDir);
+      for (const file of serverFiles) {
+        const filePath = path.join(knowledgeDir, file);
+        if (fs.statSync(filePath).isFile() && !file.startsWith(".")) {
+          const content = fs.readFileSync(filePath, "utf-8");
+          serverKnowledgeStr += `--- SERVER REFERENCE FILE: ${file} ---\n${content}\n-----------------------------\n\n`;
+        }
+      }
+    }
+
     let contextStr = "";
+    if (serverKnowledgeStr) {
+      contextStr += "The following server-side reference files are permanently loaded for your knowledge base. You MUST strictly use ONLY the functions, classes, and variable signatures specified in these files.\n\n" + serverKnowledgeStr;
+    }
+
     if (files && files.length > 0) {
-      contextStr = "The user has uploaded the following Minescript Python library/documentation reference files. You MUST strictly use ONLY the functions, classes, and variable signatures specified in these files. DO NOT hallucinate, invent, or guess any other functions. If a function is not explicitly defined in these files, do not use it under any circumstances.\n\n";
+      contextStr += "The user has also uploaded the following custom reference files:\n\n";
       files.forEach((file: { name: string; content: string }) => {
-        contextStr += `--- REFERENCE FILE: ${file.name} ---\n${file.content}\n-----------------------------\n\n`;
+        contextStr += `--- UPLOADED REFERENCE FILE: ${file.name} ---\n${file.content}\n-----------------------------\n\n`;
       });
-    } else {
-      contextStr = "No reference files have been uploaded. Remind the user politely to upload or use the default minescript.py reference file.\n\n";
+    } else if (!serverKnowledgeStr) {
+      contextStr = "No reference files have been uploaded or provided on the server. Remind the user politely to upload a reference file or add one to the /knowledge folder.\n\n";
     }
 
     const systemInstruction = `You are an elite, specialized AI Coding Assistant for Minescript, a Python library for Minecraft.
@@ -138,14 +156,40 @@ When generating code:
       parts: [{ text: prompt }]
     });
 
-    const response = await ai.models.generateContent({
-      model: selectedModel,
-      contents: contents,
-      config: {
-        systemInstruction: systemInstruction,
-        temperature: 0.1, // low temperature to ensure strict alignment with the reference files
+    let response;
+    try {
+      console.log(`Sending generateContent request to primary model: ${selectedModel}`);
+      response = await ai.models.generateContent({
+        model: selectedModel,
+        contents: contents,
+        config: {
+          systemInstruction: systemInstruction,
+          temperature: 0.1, // low temperature to ensure strict alignment with the reference files
+        }
+      });
+    } catch (firstErr: any) {
+      console.warn(`Primary model ${selectedModel} failed. Error:`, firstErr.message || firstErr);
+      
+      // Determine secondary fallback model
+      const fallbackModel = selectedModel === "gemini-3.1-flash-lite" ? "gemini-3.5-flash" : "gemini-3.1-flash-lite";
+      console.log(`Attempting automatic fallback to highly available model: ${fallbackModel}`);
+      
+      try {
+        response = await ai.models.generateContent({
+          model: fallbackModel,
+          contents: contents,
+          config: {
+            systemInstruction: systemInstruction,
+            temperature: 0.1,
+          }
+        });
+        console.log(`Fallback to ${fallbackModel} succeeded!`);
+      } catch (secondErr: any) {
+        console.error("Fallback model also failed:", secondErr.message || secondErr);
+        // Throw the original error so the user knows what failed first
+        throw firstErr;
       }
-    });
+    }
 
     console.log("Gemini API call successful, response received");
 
