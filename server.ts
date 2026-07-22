@@ -28,6 +28,23 @@ function getGenAI() {
   return aiClient;
 }
 
+app.post("/api/feedback", async (req, res) => {
+  try {
+    const { scriptId, feedback } = req.body;
+    const feedbackPath = path.join(process.cwd(), "feedback.json");
+    let feedbackData = [];
+    if (fs.existsSync(feedbackPath)) {
+      feedbackData = JSON.parse(fs.readFileSync(feedbackPath, "utf-8"));
+    }
+    feedbackData.push({ scriptId, feedback, timestamp: new Date().toISOString() });
+    fs.writeFileSync(feedbackPath, JSON.stringify(feedbackData, null, 2));
+    res.json({ status: "ok" });
+  } catch (err: any) {
+    console.error("Error saving feedback:", err);
+    res.status(500).json({ error: "Failed to save feedback" });
+  }
+});
+
 // API: Parse Python library file to extract list of functions, signatures and docstrings
 app.post("/api/parse-functions", async (req, res) => {
   try {
@@ -115,6 +132,12 @@ app.post("/api/generate", async (req, res) => {
       contextStr += "The following server-side reference files are permanently loaded for your knowledge base. You MUST strictly use ONLY the functions, classes, and variable signatures specified in these files.\n\n" + serverKnowledgeStr;
     }
 
+    const feedbackPath = path.join(process.cwd(), "feedback.json");
+    if (fs.existsSync(feedbackPath)) {
+      const feedbackContent = fs.readFileSync(feedbackPath, "utf-8");
+      contextStr += `\n\n--- PREVIOUS USER FEEDBACK (Use this to improve code quality) ---\n${feedbackContent}\n-----------------------------\n\n`;
+    }
+
     if (files && files.length > 0) {
       contextStr += "The user has also uploaded the following custom reference files:\n\n";
       files.forEach((file: { name: string; content: string }) => {
@@ -131,7 +154,7 @@ CRITICAL DIRECTIVE ON HALLUCINATIONS:
 - You MUST only use functions, signatures, classes, and variables that are defined in the provided REFERENCE FILES.
 - If a function is not explicitly documented or defined in the provided reference files, YOU MUST NOT USE IT.
 - If the user asks for a feature that requires a function not present in the reference files, explain clearly that the library does not seem to support it and show them the exact functions you are restricted to.
-- ALWAYS strive for highly elegant, clean, and well-commented Python scripts.
+- IMPORTANT: DO NOT include any code comments in the generated script. Keep it purely functional, clean, and uncommented unless explicitly requested.
 
 Reference Context:
 ${contextStr}
@@ -156,6 +179,7 @@ When generating code:
       parts: [{ text: prompt }]
     });
 
+    // Generate code
     let response;
     try {
       console.log(`Sending generateContent request to primary model: ${selectedModel}`);
@@ -192,6 +216,19 @@ When generating code:
     }
 
     console.log("Gemini API call successful, response received");
+
+    // Save prompt and generated code to history
+    const historyPath = path.join(process.cwd(), "script_history.json");
+    let historyData = [];
+    if (fs.existsSync(historyPath)) {
+      historyData = JSON.parse(fs.readFileSync(historyPath, "utf-8"));
+    }
+    historyData.push({ 
+        prompt, 
+        code: response.text, 
+        timestamp: new Date().toISOString() 
+    });
+    fs.writeFileSync(historyPath, JSON.stringify(historyData, null, 2));
 
     res.json({ text: response.text });
   } catch (err: any) {

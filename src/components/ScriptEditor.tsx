@@ -189,6 +189,20 @@ export default function ScriptEditor({
                 <Save className="w-4 h-4" />
                 {saveSuccess ? "Saved!" : "Save"}
               </button>
+              <button
+                onClick={() => fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scriptId: scriptTitle, feedback: "works" }) })}
+                className="p-1.5 bg-[#0C0C0C] border border-[#2A2A2A] rounded hover:border-green-500 hover:bg-[#141414] text-gray-300 transition-all"
+                title="Works"
+              >
+                <Check className="w-4 h-4 text-green-400" />
+              </button>
+              <button
+                onClick={() => fetch("/api/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scriptId: scriptTitle, feedback: "doesn't work" }) })}
+                className="p-1.5 bg-[#0C0C0C] border border-[#2A2A2A] rounded hover:border-red-500 hover:bg-[#141414] text-gray-300 transition-all"
+                title="Doesn't work"
+              >
+                <Trash2 className="w-4 h-4 text-red-400" />
+              </button>
             </div>
           </div>
 
