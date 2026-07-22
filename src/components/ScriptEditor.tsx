@@ -86,7 +86,17 @@ export default function ScriptEditor({
   const [scriptTitle, setScriptTitle] = useState("");
   const [copied, setCopied] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [activeTab, setActiveTab] = useState<"editor" | "library">("editor");
+  const [activeTab, setActiveTab] = useState<"editor" | "library" | "history">("editor");
+  const [history, setHistory] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (activeTab === "history") {
+      fetch("/api/history")
+        .then((res) => res.json())
+        .then((data) => setHistory(data))
+        .catch((err) => console.error("Error fetching history:", err));
+    }
+  }, [activeTab]);
 
   const handleCopy = () => {
     if (!currentScript) return;
@@ -140,6 +150,17 @@ export default function ScriptEditor({
         >
           <Save className="w-4 h-4" />
           Saved Scripts ({savedScripts.length})
+        </button>
+        <button
+          onClick={() => setActiveTab("history")}
+          className={`flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 border-b-2 transition-all ${
+            activeTab === "history"
+              ? "border-green-500 text-green-400 bg-green-500/5 font-bold"
+              : "border-transparent text-gray-400 hover:text-gray-250"
+          }`}
+        >
+          <Calendar className="w-4 h-4" />
+          History
         </button>
       </div>
 
@@ -210,6 +231,40 @@ export default function ScriptEditor({
           <div className="flex-1 bg-[#050505] p-4 font-mono text-xs overflow-auto custom-scrollbar select-text">
             {highlightPython(currentScript)}
           </div>
+        </div>
+      ) : activeTab === "history" ? (
+        // --- HISTORY VIEW ---
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
+          {history.length === 0 ? (
+            <div className="text-center py-12 text-gray-500 text-xs font-mono">
+              No history found.
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              {history.slice().reverse().map((item, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => {
+                    fetch(`/api/history-code/${item.codeFile}`)
+                      .then((res) => res.json())
+                      .then((data) => {
+                        setCurrentScript(data.code);
+                        setActiveTab("editor");
+                      })
+                      .catch((err) => console.error("Error fetching code:", err));
+                  }}
+                  className="p-3 rounded bg-[#0C0C0C] border border-[#2A2A2A] transition-all cursor-pointer hover:border-green-500"
+                >
+                    <p className="text-[11px] text-gray-200 leading-normal mb-1">
+                      Prompt: {item.prompt}
+                    </p>
+                    <div className="text-[10px] text-gray-500 font-mono">
+                      {new Date(item.timestamp).toLocaleString()}
+                    </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
         // --- LIBRARY VIEW ---

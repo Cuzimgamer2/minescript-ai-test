@@ -45,6 +45,35 @@ app.post("/api/feedback", async (req, res) => {
   }
 });
 
+app.get("/api/history", async (req, res) => {
+  try {
+    const historyPath = path.join(process.cwd(), "script_history.json");
+    if (!fs.existsSync(historyPath)) {
+      return res.json([]);
+    }
+    const historyData = JSON.parse(fs.readFileSync(historyPath, "utf-8"));
+    res.json(historyData);
+  } catch (err: any) {
+    console.error("Error reading history:", err);
+    res.status(500).json({ error: "Failed to read history" });
+  }
+});
+
+app.get("/api/history-code/:filename", async (req, res) => {
+  try {
+    const filename = req.params.filename;
+    const codePath = path.join(process.cwd(), "history", filename);
+    if (!fs.existsSync(codePath)) {
+      return res.status(404).json({ error: "File not found" });
+    }
+    const code = fs.readFileSync(codePath, "utf-8");
+    res.json({ code });
+  } catch (err: any) {
+    console.error("Error reading history code:", err);
+    res.status(500).json({ error: "Failed to read history code" });
+  }
+});
+
 // API: Parse Python library file to extract list of functions, signatures and docstrings
 app.post("/api/parse-functions", async (req, res) => {
   try {
@@ -218,6 +247,14 @@ When generating code:
     console.log("Gemini API call successful, response received");
 
     // Save prompt and generated code to history
+    const historyDir = path.join(process.cwd(), "history");
+    if (!fs.existsSync(historyDir)) {
+      fs.mkdirSync(historyDir);
+    }
+    const codeFilename = `script_${Date.now()}.py`;
+    const codePath = path.join(historyDir, codeFilename);
+    fs.writeFileSync(codePath, response.text);
+
     const historyPath = path.join(process.cwd(), "script_history.json");
     let historyData = [];
     if (fs.existsSync(historyPath)) {
@@ -225,7 +262,7 @@ When generating code:
     }
     historyData.push({ 
         prompt, 
-        code: response.text, 
+        codeFile: codeFilename,
         timestamp: new Date().toISOString() 
     });
     fs.writeFileSync(historyPath, JSON.stringify(historyData, null, 2));
