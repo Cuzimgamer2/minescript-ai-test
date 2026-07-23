@@ -265,6 +265,16 @@ When generating code:
         codeFile: codeFilename,
         timestamp: new Date().toISOString() 
     });
+
+    // Limit to 5
+    while (historyData.length > 5) {
+        const removed = historyData.shift(); // Remove oldest
+        // Delete the file
+        const oldCodePath = path.join(process.cwd(), "history", removed.codeFile);
+        if (fs.existsSync(oldCodePath)) {
+            fs.unlinkSync(oldCodePath);
+        }
+    }
     fs.writeFileSync(historyPath, JSON.stringify(historyData, null, 2));
 
     res.json({ text: response.text });

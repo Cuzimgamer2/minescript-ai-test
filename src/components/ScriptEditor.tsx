@@ -241,28 +241,48 @@ export default function ScriptEditor({
             </div>
           ) : (
             <div className="grid gap-2">
-              {history.slice().reverse().map((item, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => {
-                    fetch(`/api/history-code/${item.codeFile}`)
-                      .then((res) => res.json())
-                      .then((data) => {
-                        setCurrentScript(data.code);
-                        setActiveTab("editor");
-                      })
-                      .catch((err) => console.error("Error fetching code:", err));
-                  }}
-                  className="p-3 rounded bg-[#0C0C0C] border border-[#2A2A2A] transition-all cursor-pointer hover:border-green-500"
-                >
-                    <p className="text-[11px] text-gray-200 leading-normal mb-1">
-                      Prompt: {item.prompt}
-                    </p>
-                    <div className="text-[10px] text-gray-500 font-mono">
-                      {new Date(item.timestamp).toLocaleString()}
+              {history.slice().reverse().map((item, idx) => {
+                const originalIdx = history.length - 1 - idx;
+                return (
+                  <div
+                    key={idx}
+                    className="p-3 rounded bg-[#0C0C0C] border border-[#2A2A2A] transition-all cursor-pointer hover:border-green-500"
+                  >
+                    <div onClick={() => {
+                        const isExpanded = !!history[originalIdx].expanded;
+                        if (!isExpanded && !history[originalIdx].code) {
+                            fetch(`/api/history-code/${item.codeFile}`)
+                              .then(res => res.json())
+                              .then(data => {
+                                  setHistory(prev => prev.map((h, i) => i === originalIdx ? {...h, code: data.code, expanded: true} : h));
+                              });
+                        } else {
+                            setHistory(prev => prev.map((h, i) => i === originalIdx ? {...h, expanded: !isExpanded} : h));
+                        }
+                    }}>
+                        <p className="text-[11px] text-gray-200 leading-normal mb-1">
+                          Prompt: {item.prompt}
+                        </p>
+                        <div className="text-[10px] text-gray-500 font-mono">
+                          {new Date(item.timestamp).toLocaleString()}
+                        </div>
                     </div>
-                </div>
-              ))}
+                    
+                    {history[originalIdx].expanded && history[originalIdx].code && (
+                        <div className="mt-2 p-2 bg-[#050505] rounded font-mono text-[10px] text-gray-300 opacity-80 whitespace-pre overflow-x-auto">
+                            {history[originalIdx].code}
+                        </div>
+                    )}
+                    
+                    {history[originalIdx].expanded && history[originalIdx].code && (
+                        <button 
+                            onClick={() => { setCurrentScript(history[originalIdx].code); setActiveTab("editor"); }}
+                            className="mt-2 text-[10px] text-green-500 underline hover:text-green-400"
+                        >Load into Editor</button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
